@@ -10,6 +10,14 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+// Every route with :id requires a positive integer id
+app.param('id', (req, res, next, id) => {
+  if (!/^\d{1,9}$/.test(id)) {
+    return res.status(400).json({ error: 'id must be a positive integer' });
+  }
+  next();
+});
+
 // App configuration for the front-end
 app.get('/api/info', (req, res) => {
   res.json({ appName: APP_NAME });
@@ -32,10 +40,14 @@ app.get('/api/movies', async (req, res) => {
 
 // Add a movie to the watchlist
 app.post('/api/movies', async (req, res) => {
-  const title = (req.body.title || '').trim();
-  const year = req.body.year ? Number(req.body.year) : null;
+  const body = req.body ?? {};
+  const title = String(body.title ?? '').trim();
+  const year = body.year ? Number(body.year) : null;
   if (!title) {
     return res.status(400).json({ error: 'title is required' });
+  }
+  if (year !== null && !Number.isInteger(year)) {
+    return res.status(400).json({ error: 'year must be an integer' });
   }
   const result = await pool.query(
     'INSERT INTO movies (title, year) VALUES ($1, $2) RETURNING *',
@@ -46,9 +58,12 @@ app.post('/api/movies', async (req, res) => {
 
 // Mark as watched and/or set a rating (1-10)
 app.patch('/api/movies/:id', async (req, res) => {
-  const { watched, rating } = req.body;
-  if (rating != null && !(rating >= 1 && rating <= 10)) {
-    return res.status(400).json({ error: 'rating must be between 1 and 10' });
+  const { watched, rating } = req.body ?? {};
+  if (watched != null && typeof watched !== 'boolean') {
+    return res.status(400).json({ error: 'watched must be true or false' });
+  }
+  if (rating != null && !(Number.isInteger(rating) && rating >= 1 && rating <= 10)) {
+    return res.status(400).json({ error: 'rating must be an integer between 1 and 10' });
   }
   const result = await pool.query(
     `UPDATE movies
