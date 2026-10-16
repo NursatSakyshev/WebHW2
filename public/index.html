@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movie Watchlist</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f4f6fb;
+      color: #1f2937;
+      margin: 0;
+      padding: 40px 16px;
+      display: flex;
+      justify-content: center;
+    }
+    .card {
+      background: #fff;
+      max-width: 640px;
+      width: 100%;
+      padding: 28px;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    }
+    h1 { margin-top: 0; color: #2563eb; }
+    form { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    input, select, button { font: inherit; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; }
+    input[name="title"] { flex: 1; min-width: 160px; }
+    input[name="year"] { width: 90px; }
+    button { background: #2563eb; color: #fff; border: none; cursor: pointer; }
+    button.delete { background: none; color: #dc2626; padding: 4px 8px; }
+    .stats { color: #6b7280; margin-bottom: 12px; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-top: 1px solid #e5e7eb;
+    }
+    li .title { flex: 1; }
+    li.watched .title { color: #6b7280; text-decoration: line-through; }
+    .empty { color: #6b7280; padding: 12px 0; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 id="appName">Movie Watchlist</h1>
+
+    <form id="addForm">
+      <input name="title" placeholder="Movie title" required>
+      <input name="year" type="number" min="1888" max="2100" placeholder="Year">
+      <button type="submit">Add</button>
+    </form>
+
+    <div class="stats" id="stats"></div>
+    <ul id="list"></ul>
+  </div>
+
+  <script>
+    const list = document.getElementById('list');
+
+    async function api(method, url, body) {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      return res.status === 204 ? null : res.json();
+    }
+
+    async function load() {
+      const [movies, stats] = await Promise.all([
+        api('GET', '/api/movies'),
+        api('GET', '/api/stats'),
+      ]);
+
+      document.getElementById('stats').textContent =
+        `Total: ${stats.total} · Watched: ${stats.watched}` +
+        (stats.averageRating ? ` · Average rating: ${stats.averageRating}/10` : '');
+
+      list.innerHTML = '';
+      if (movies.length === 0) {
+        list.innerHTML = '<li class="empty">The list is empty — add your first movie.</li>';
+        return;
+      }
+
+      for (const movie of movies) {
+        const li = document.createElement('li');
+        li.className = movie.watched ? 'watched' : '';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = movie.watched;
+        checkbox.title = 'Watched';
+        checkbox.onchange = () => api('PATCH', `/api/movies/${movie.id}`, { watched: checkbox.checked }).then(load);
+
+        const title = document.createElement('span');
+        title.className = 'title';
+        title.textContent = movie.year ? `${movie.title} (${movie.year})` : movie.title;
+
+        const rating = document.createElement('select');
+        rating.innerHTML = '<option value="">Rate</option>' +
+          Array.from({ length: 10 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
+        rating.value = movie.rating ?? '';
+        rating.onchange = () => api('PATCH', `/api/movies/${movie.id}`, { rating: Number(rating.value) }).then(load);
+
+        const del = document.createElement('button');
+        del.className = 'delete';
+        del.textContent = '✕';
+        del.title = 'Delete';
+        del.onclick = () => api('DELETE', `/api/movies/${movie.id}`).then(load);
+
+        li.append(checkbox, title, rating, del);
+        list.append(li);
+      }
+    }
+
+    document.getElementById('addForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      await api('POST', '/api/movies', { title: form.title.value, year: form.year.value });
+      form.reset();
+      load();
+    };
+
+    api('GET', '/api/info').then((info) => {
+      document.getElementById('appName').textContent = info.appName;
+      document.title = info.appName;
+    });
+    load();
+  </script>
+</body>
+</html>

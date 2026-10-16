@@ -1,0 +1,13 @@
+{
+  "name": "webhw2",
+  "version": "1.0.0",
+  "description": "Movie Watchlist: Express backend + PostgreSQL, run with Docker Compose",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "pg": "^8.13.1"
+  }
+}
