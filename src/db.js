@@ -1,6 +1,5 @@
 const { Pool } = require('pg');
 
-// All connection settings come from environment variables (see .env.example)
 const pool = new Pool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT || 5432),
@@ -9,7 +8,6 @@ const pool = new Pool({
   database: process.env.DB_NAME,
 });
 
-// Create the table on startup if it doesn't exist yet
 async function initDb() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS movies (

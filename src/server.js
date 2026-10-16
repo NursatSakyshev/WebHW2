@@ -10,7 +10,6 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Every route with :id requires a positive integer id
 app.param('id', (req, res, next, id) => {
   if (!/^\d{1,9}$/.test(id)) {
     return res.status(400).json({ error: 'id must be a positive integer' });
@@ -18,12 +17,10 @@ app.param('id', (req, res, next, id) => {
   next();
 });
 
-// App configuration for the front-end
 app.get('/api/info', (req, res) => {
   res.json({ appName: APP_NAME });
 });
 
-// List movies, optional filter: /api/movies?watched=true
 app.get('/api/movies', async (req, res) => {
   const { watched } = req.query;
   let result;
@@ -38,7 +35,6 @@ app.get('/api/movies', async (req, res) => {
   res.json(result.rows);
 });
 
-// Add a movie to the watchlist
 app.post('/api/movies', async (req, res) => {
   const body = req.body ?? {};
   const title = String(body.title ?? '').trim();
@@ -56,7 +52,6 @@ app.post('/api/movies', async (req, res) => {
   res.status(201).json(result.rows[0]);
 });
 
-// Mark as watched and/or set a rating (1-10)
 app.patch('/api/movies/:id', async (req, res) => {
   const { watched, rating } = req.body ?? {};
   if (watched != null && typeof watched !== 'boolean') {
@@ -79,7 +74,6 @@ app.patch('/api/movies/:id', async (req, res) => {
   res.json(result.rows[0]);
 });
 
-// Remove a movie
 app.delete('/api/movies/:id', async (req, res) => {
   const result = await pool.query('DELETE FROM movies WHERE id = $1', [req.params.id]);
   if (result.rowCount === 0) {
@@ -88,7 +82,6 @@ app.delete('/api/movies/:id', async (req, res) => {
   res.status(204).end();
 });
 
-// Watchlist statistics
 app.get('/api/stats', async (req, res) => {
   const result = await pool.query(`
     SELECT COUNT(*)::int                          AS total,
@@ -99,7 +92,6 @@ app.get('/api/stats', async (req, res) => {
   res.json(result.rows[0]);
 });
 
-// Health check: the app is up and the database answers
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -109,7 +101,6 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Errors from async handlers (e.g. invalid id) end up here
 app.use((err, req, res, next) => {
   console.error(err.message);
   res.status(500).json({ error: 'internal server error' });
